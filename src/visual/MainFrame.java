@@ -22,6 +22,9 @@ public class MainFrame extends javax.swing.JFrame {
     boolean isAutomatic = false;
     boolean isSimulated = false;
     JFXPanel fxPanel;
+    
+    String currentState = "Informacion del Estado de la conexion con la Pierna Robotica.";
+    String currentIcon = "OptionPane.informationIcon";
     /**
      * Creates new form MainFrame
      */
@@ -70,6 +73,7 @@ public class MainFrame extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         statePanel = new javax.swing.JPanel();
         stateLabel = new javax.swing.JLabel();
+        connectBtn = new javax.swing.JToggleButton();
         menuBar = new javax.swing.JMenuBar();
         FileMenu = new javax.swing.JMenu();
         saveFigMenuIt = new javax.swing.JMenuItem();
@@ -280,6 +284,15 @@ public class MainFrame extends javax.swing.JFrame {
         stateLabel.setAutoscrolls(true);
         statePanel.add(stateLabel);
 
+        connectBtn.setText("Conexion a Pierna");
+        connectBtn.setToolTipText("");
+        connectBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                connectBtnActionPerformed(evt);
+            }
+        });
+        statePanel.add(connectBtn);
+
         FileMenu.setText("Archivo");
 
         saveFigMenuIt.setText("Guardar Figura...");
@@ -434,25 +447,26 @@ public class MainFrame extends javax.swing.JFrame {
 
     private void rbItUnkownActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rbItUnkownActionPerformed
         if (rbItUnkown.isSelected())
-        {   stateLabel.setIcon(javax.swing.
-                UIManager.getIcon("OptionPane.questionIcon"));
-                stateLabel.setText("Conectando con Pierna Robotica ...");
+        {
+            currentState = "Conectando con Pierna Robotica ...";
+            currentIcon = "OptionPane.questionIcon";
+            updateState(currentState, currentIcon);
         }
     }//GEN-LAST:event_rbItUnkownActionPerformed
 
     private void rbItConnectedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rbItConnectedActionPerformed
         if (rbItConnected.isSelected())
-        {   stateLabel.setIcon(javax.swing.
-                UIManager.getIcon("OptionPane.informationIcon"));
-                stateLabel.setText("Control de Pierna Robotica disponible.");
+        {currentState = "Control de Pierna Robotica disponible.";
+            currentIcon = "OptionPane.informationIcon";
+            updateState(currentState, currentIcon);
         }
     }//GEN-LAST:event_rbItConnectedActionPerformed
 
     private void rbItDisconnectedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rbItDisconnectedActionPerformed
         if (rbItDisconnected.isSelected())
-        {   stateLabel.setIcon(javax.swing.
-                UIManager.getIcon("OptionPane.errorIcon"));
-                stateLabel.setText("No existe conexion con Pierna Robotica.");
+        {currentState = "No existe conexion con Pierna Robotica.";
+            currentIcon = "OptionPane.errorIcon";
+            updateState(currentState, currentIcon);
         }
     }//GEN-LAST:event_rbItDisconnectedActionPerformed
 
@@ -462,6 +476,21 @@ public class MainFrame extends javax.swing.JFrame {
             initDataFX(fxPanel);
         }
     }//GEN-LAST:event_comboVisualItemStateChanged
+
+    private void connectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectBtnActionPerformed
+        if (connectBtn.isSelected()){
+            rbItUnkown.setSelected(true);
+            currentState = "Conectando con Pierna Robotica ...";
+            currentIcon = "OptionPane.questionIcon";
+            updateState(currentState, currentIcon);
+        }
+        else {
+            rbItDisconnected.setSelected(true);
+            currentState = "No existe conexion con Pierna Robotica.";
+            currentIcon = "OptionPane.errorIcon";
+            updateState(currentState, currentIcon);
+        }
+    }//GEN-LAST:event_connectBtnActionPerformed
 
     /**
      * @param args the command line arguments
@@ -499,6 +528,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JSpinner ankleSpinner;
     private javax.swing.JRadioButton automatic;
     private javax.swing.JComboBox<String> comboVisual;
+    private javax.swing.JToggleButton connectBtn;
     private javax.swing.JPanel controlPanel;
     private javax.swing.ButtonGroup controlSelect;
     private javax.swing.JMenu helpMenu;
@@ -512,7 +542,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JPopupMenu.Separator jSeparator2;
-    private javax.swing.JSeparator jSeparator3;
+    private javax.swing.JPopupMenu.Separator jSeparator3;
     private javax.swing.JPanel jointsPanel;
     private javax.swing.JLabel kneeLabel;
     private javax.swing.JSlider kneeSlider;
@@ -534,6 +564,12 @@ public class MainFrame extends javax.swing.JFrame {
     private org.jdesktop.beansbinding.BindingGroup bindingGroup;
     // End of variables declaration//GEN-END:variables
 
+    private void updateState(String currentState, String currentIcon){
+        stateLabel.setIcon(javax.swing.
+                UIManager.getIcon(currentIcon));
+                stateLabel.setText(currentState);
+    }
+    
     private void initDataFX(JFXPanel fxPanel) {
         fxPanel.removeAll();
         if (isSimulated){
