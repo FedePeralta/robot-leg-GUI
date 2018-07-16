@@ -5,19 +5,28 @@
  */
 package visual;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
+import javafx.scene.Group;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Data;
 import javafx.scene.layout.GridPane;
-import javafx.scene.shape.Cylinder;
-import javafx.scene.Group;
-import javafx.scene.PerspectiveCamera;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
+import jssc.SerialPort;
+import jssc.SerialPortException;
+import jssc.SerialPortList;
+
+import utilities.Leg;
+import utilities.Foot;
+import utilities.LegSerialPort;
 
 /**
  *
@@ -29,15 +38,25 @@ public class MainFrame extends javax.swing.JFrame {
     boolean isAutomatic = false;
     boolean isSimulated = false;
 
+    private LegSerialPort serialPort;
+    Thread serialPortThread;
+
     // parte de visualizacion
     // panel FX,series de numeros, axis, charts para los 3 sensores
     // un gridpane para el chart y un scene p los 2 visuales
     JFXPanel fxPanel;
     XYChart.Series ankleSensorReads, hipSensorReads, kneeSensorReads;
+    Leg upperLeg, lowerLeg;
+    Foot foot;
     NumberAxis ankleX, ankleY, kneeX, kneeY, hipX, hipY;
     LineChart<Number, Number> ankleChart, kneeChart, hipChart;
-    GridPane sensorGrid, visualGrid;
-    Scene visualScene;
+    int lastAnkleUpdate = 0, lastKneeUpdate = 0, lastHipUpdate = 0;
+    GridPane sensorGrid;
+    Group visualGroup;
+    Scene visualScene, sensorScene;
+    AnimationTimer animT;
+
+    int frameCount;
 
     String currentState = "Informacion del Estado de la conexion con la Pierna Robotica.";
     String currentIcon = "OptionPane.informationIcon";
@@ -48,6 +67,11 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         initComponents();
 
+        cbListaPuertos.removeAllItems();
+        String puertos[] = SerialPortList.getPortNames();
+        for (String s : puertos) {
+            cbListaPuertos.addItem(s);
+        }
         fxPanel = new JFXPanel();
         jPanel1.add(fxPanel);
 
@@ -89,6 +113,8 @@ public class MainFrame extends javax.swing.JFrame {
         comboVisual = new javax.swing.JComboBox<>();
         jPanel1 = new javax.swing.JPanel();
         statePanel = new javax.swing.JPanel();
+        jLabel5 = new javax.swing.JLabel();
+        cbListaPuertos = new javax.swing.JComboBox<>();
         stateLabel = new javax.swing.JLabel();
         connectBtn = new javax.swing.JToggleButton();
         menuBar = new javax.swing.JMenuBar();
@@ -158,6 +184,11 @@ public class MainFrame extends javax.swing.JFrame {
         hipSlider.setMinimum(-359);
         hipSlider.setPaintTicks(true);
         hipSlider.setToolTipText("");
+        hipSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                hipSliderStateChanged(evt);
+            }
+        });
 
         hipSpinner.setModel(new javax.swing.SpinnerNumberModel(0, -359, 359, 1));
         hipSpinner.setMinimumSize(new java.awt.Dimension(50, 22));
@@ -172,6 +203,11 @@ public class MainFrame extends javax.swing.JFrame {
         kneeSlider.setMinimum(-359);
         kneeSlider.setPaintTicks(true);
         kneeSlider.setToolTipText("");
+        kneeSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                kneeSliderStateChanged(evt);
+            }
+        });
 
         kneeSpinner.setModel(new javax.swing.SpinnerNumberModel(0, -359, 359, 1));
         kneeSpinner.setMinimumSize(new java.awt.Dimension(50, 22));
@@ -185,6 +221,11 @@ public class MainFrame extends javax.swing.JFrame {
         ankleSlider.setMaximum(359);
         ankleSlider.setMinimum(-359);
         ankleSlider.setPaintTicks(true);
+        ankleSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                ankleSliderStateChanged(evt);
+            }
+        });
 
         ankleSpinner.setModel(new javax.swing.SpinnerNumberModel(0, -359, 359, 1));
         ankleSpinner.setMinimumSize(new java.awt.Dimension(50, 22));
@@ -283,7 +324,7 @@ public class MainFrame extends javax.swing.JFrame {
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(sensorsPanelLayout.createSequentialGroup()
                         .addComponent(comboVisual, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(240, Short.MAX_VALUE))))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
         sensorsPanelLayout.setVerticalGroup(
             sensorsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -295,6 +336,11 @@ public class MainFrame extends javax.swing.JFrame {
         );
 
         statePanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Estado"));
+
+        jLabel5.setText("Puerto:");
+        statePanel.add(jLabel5);
+
+        statePanel.add(cbListaPuertos);
 
         stateLabel.setIcon(javax.swing.UIManager.getIcon("OptionPane.informationIcon"));
         stateLabel.setText("Informacion del Estado de la conexion con la Pierna Robotica.");
@@ -430,10 +476,12 @@ public class MainFrame extends javax.swing.JFrame {
 
     private void menuItHelpActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuItHelpActionPerformed
         System.out.println("Todo: Ventana de ayuda.");
+
     }//GEN-LAST:event_menuItHelpActionPerformed
 
     private void menuItAboutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuItAboutActionPerformed
         System.out.println("Todo: Ventana de acerca de.");
+
     }//GEN-LAST:event_menuItAboutActionPerformed
 
     private void automaticActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_automaticActionPerformed
@@ -493,17 +541,45 @@ public class MainFrame extends javax.swing.JFrame {
 
     private void connectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectBtnActionPerformed
         if (connectBtn.isSelected()) {
+            serialPort = new LegSerialPort(
+                    (String) cbListaPuertos.getSelectedItem());
+
+            serialPortThread = new Thread(serialPort);
             rbItUnkown.setSelected(true);
+            // Se conecta y luego se envia un S de start, si se
+            // recibe un S de nuevo, hay conexion
+            serialPort.initialize(this);
             currentState = "Conectando con Pierna Robotica ...";
             currentIcon = "OptionPane.questionIcon";
             updateState(currentState, currentIcon);
+            serialPortThread.start();
+
         } else {
             rbItDisconnected.setSelected(true);
             currentState = "No existe conexion con Pierna Robotica.";
             currentIcon = "OptionPane.errorIcon";
             updateState(currentState, currentIcon);
+            serialPort.stopSerial();
         }
     }//GEN-LAST:event_connectBtnActionPerformed
+
+    private void hipSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_hipSliderStateChanged
+        if (connectBtn.isSelected()) {
+            serialPort.sendData("H", hipSlider.getValue());
+        }
+     }//GEN-LAST:event_hipSliderStateChanged
+
+    private void kneeSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_kneeSliderStateChanged
+        if (connectBtn.isSelected()) {
+            serialPort.sendData("K", kneeSlider.getValue());
+        }
+    }//GEN-LAST:event_kneeSliderStateChanged
+
+    private void ankleSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_ankleSliderStateChanged
+        if (connectBtn.isSelected()) {
+            serialPort.sendData("A", ankleSlider.getValue());
+        }
+    }//GEN-LAST:event_ankleSliderStateChanged
 
     /**
      * @param args the command line arguments
@@ -540,6 +616,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JSlider ankleSlider;
     private javax.swing.JSpinner ankleSpinner;
     private javax.swing.JRadioButton automatic;
+    private javax.swing.JComboBox<String> cbListaPuertos;
     private javax.swing.JComboBox<String> comboVisual;
     private javax.swing.JToggleButton connectBtn;
     private javax.swing.JPanel controlPanel;
@@ -552,6 +629,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JPopupMenu.Separator jSeparator2;
@@ -586,13 +664,13 @@ public class MainFrame extends javax.swing.JFrame {
         fxPanel.removeAll();
         if (isSimulated) {
             createSimuIfNeed();
-            visualScene.setRoot(visualGrid);
-
+            animT.start();
+            fxPanel.setScene(visualScene);
         } else {
             createObjectsIfNeed();
-            visualScene.setRoot(sensorGrid);
+            fxPanel.setScene(sensorScene);
         }
-        fxPanel.setScene(visualScene);
+
     }
 
     private void createObjectsIfNeed() {
@@ -618,91 +696,183 @@ public class MainFrame extends javax.swing.JFrame {
 
             ankleSensorReads = new XYChart.Series();
             //populating the series with data
-            ankleSensorReads.getData().add(new XYChart.Data(1, 23));
-            ankleSensorReads.getData().add(new XYChart.Data(2, 14));
-            ankleSensorReads.getData().add(new XYChart.Data(3, 15));
-            ankleSensorReads.getData().add(new XYChart.Data(4, 24));
-            ankleSensorReads.getData().add(new XYChart.Data(5, 34));
-            ankleSensorReads.getData().add(new XYChart.Data(6, 36));
-            ankleSensorReads.getData().add(new XYChart.Data(7, 22));
-            ankleSensorReads.getData().add(new XYChart.Data(8, 45));
-            ankleSensorReads.getData().add(new XYChart.Data(9, 43));
-            ankleSensorReads.getData().add(new XYChart.Data(10, 17));
-            ankleSensorReads.getData().add(new XYChart.Data(11, 29));
-            ankleSensorReads.getData().add(new XYChart.Data(12, 25));
-            ankleChart.getData().add(ankleSensorReads);
+            ankleSensorReads.getData().add(new XYChart.Data(1, Math.PI / 2 + 0.1));
+/*            ankleSensorReads.getData().add(new XYChart.Data(2, Math.PI / 2 + 0.2));
+            ankleSensorReads.getData().add(new XYChart.Data(3, Math.PI / 2 + 0.3));
+            ankleSensorReads.getData().add(new XYChart.Data(4, Math.PI / 2 + 0.2));
+            ankleSensorReads.getData().add(new XYChart.Data(5, Math.PI / 2 + 0.1));
+            ankleSensorReads.getData().add(new XYChart.Data(6, Math.PI / 2 + 0.2));
+            ankleSensorReads.getData().add(new XYChart.Data(7, Math.PI / 2 + 0.3));
+            ankleSensorReads.getData().add(new XYChart.Data(8, Math.PI / 2 + 0.2));
+            ankleSensorReads.getData().add(new XYChart.Data(9, Math.PI / 2 + 0.1));
+            ankleSensorReads.getData().add(new XYChart.Data(10, Math.PI / 2 + 0.2));
+            ankleSensorReads.getData().add(new XYChart.Data(11, Math.PI / 2 + 0.3));
+            ankleSensorReads.getData().add(new XYChart.Data(12, Math.PI / 2 + 0.2));
+*/            ankleChart.getData().add(ankleSensorReads);
 
             kneeSensorReads = new XYChart.Series();
             //populating the series with data
-            kneeSensorReads.getData().add(new XYChart.Data(1, 23));
-            kneeSensorReads.getData().add(new XYChart.Data(2, 14));
-            kneeSensorReads.getData().add(new XYChart.Data(3, 15));
-            kneeSensorReads.getData().add(new XYChart.Data(4, 24));
-            kneeSensorReads.getData().add(new XYChart.Data(5, 34));
-            kneeSensorReads.getData().add(new XYChart.Data(6, 36));
-            kneeSensorReads.getData().add(new XYChart.Data(7, 22));
-            kneeSensorReads.getData().add(new XYChart.Data(8, 45));
-            kneeSensorReads.getData().add(new XYChart.Data(9, 43));
-            kneeSensorReads.getData().add(new XYChart.Data(10, 17));
-            kneeSensorReads.getData().add(new XYChart.Data(11, 29));
-            kneeSensorReads.getData().add(new XYChart.Data(12, 25));
-            kneeChart.getData().add(kneeSensorReads);
+            kneeSensorReads.getData().add(new XYChart.Data(1, Math.PI / 2 * 0.1));
+/*            kneeSensorReads.getData().add(new XYChart.Data(2, Math.PI / 2 * 0.2));
+            kneeSensorReads.getData().add(new XYChart.Data(3, Math.PI / 2 * 0.3));
+            kneeSensorReads.getData().add(new XYChart.Data(4, Math.PI / 2 * 0.4));
+            kneeSensorReads.getData().add(new XYChart.Data(5, Math.PI / 2 * 0.5));
+            kneeSensorReads.getData().add(new XYChart.Data(6, Math.PI / 2 * 0.6));
+            kneeSensorReads.getData().add(new XYChart.Data(7, Math.PI / 2 * 0.7));
+            kneeSensorReads.getData().add(new XYChart.Data(8, Math.PI / 2 * 0.6));
+            kneeSensorReads.getData().add(new XYChart.Data(9, Math.PI / 2 * 0.5));
+            kneeSensorReads.getData().add(new XYChart.Data(10, Math.PI / 2 * 0.4));
+            kneeSensorReads.getData().add(new XYChart.Data(11, Math.PI / 2 * 0.3));
+            kneeSensorReads.getData().add(new XYChart.Data(12, Math.PI / 2 * 0.2));
+ */           kneeChart.getData().add(kneeSensorReads);
 
             hipSensorReads = new XYChart.Series();
             //populating the series with data
-            hipSensorReads.getData().add(new XYChart.Data(1, 23));
-            hipSensorReads.getData().add(new XYChart.Data(2, 14));
-            hipSensorReads.getData().add(new XYChart.Data(3, 15));
-            hipSensorReads.getData().add(new XYChart.Data(4, 24));
-            hipSensorReads.getData().add(new XYChart.Data(5, 34));
-            hipSensorReads.getData().add(new XYChart.Data(6, 36));
-            hipSensorReads.getData().add(new XYChart.Data(7, 22));
-            hipSensorReads.getData().add(new XYChart.Data(8, 45));
-            hipSensorReads.getData().add(new XYChart.Data(9, 43));
-            hipSensorReads.getData().add(new XYChart.Data(10, 17));
-            hipSensorReads.getData().add(new XYChart.Data(11, 29));
-            hipSensorReads.getData().add(new XYChart.Data(12, 25));
-            hipChart.getData().add(hipSensorReads);
+            hipSensorReads.getData().add(new XYChart.Data(1, Math.PI / 2 * 0.7));
+/*            hipSensorReads.getData().add(new XYChart.Data(2, Math.PI / 2 * 0.6));
+            hipSensorReads.getData().add(new XYChart.Data(3, Math.PI / 2 * 0.5));
+            hipSensorReads.getData().add(new XYChart.Data(4, Math.PI / 2 * 0.4));
+            hipSensorReads.getData().add(new XYChart.Data(5, Math.PI / 2 * 0.3));
+            hipSensorReads.getData().add(new XYChart.Data(6, Math.PI / 2 * 0.2));
+            hipSensorReads.getData().add(new XYChart.Data(7, Math.PI / 2 * 0.1));
+            hipSensorReads.getData().add(new XYChart.Data(8, Math.PI / 2 * 0.2));
+            hipSensorReads.getData().add(new XYChart.Data(9, Math.PI / 2 * 0.3));
+            hipSensorReads.getData().add(new XYChart.Data(10, Math.PI / 2 * 0.4));
+            hipSensorReads.getData().add(new XYChart.Data(11, Math.PI / 2 * 0.5));
+            hipSensorReads.getData().add(new XYChart.Data(12, Math.PI / 2 * 0.6));
+*/            hipChart.getData().add(hipSensorReads);
 
             sensorGrid.add(ankleChart, 0, 0);
             sensorGrid.add(kneeChart, 0, 1);
             sensorGrid.add(hipChart, 0, 2);
-            visualScene = new Scene(sensorGrid, 1024, 768);
+
+            sensorScene = new Scene(sensorGrid, 1024, 768);
+        } else {
+            animT.stop();
         }
     }
 
     private void createSimuIfNeed() {
-        visualGrid = new GridPane();
-        PhongMaterial redMaterial = new PhongMaterial();
-        PhongMaterial yellowMaterial = new PhongMaterial();
-        PhongMaterial greenMaterial = new PhongMaterial();
-        
-        redMaterial.setDiffuseColor(Color.RED);
-        yellowMaterial.setDiffuseColor(Color.YELLOW);
-        greenMaterial.setDiffuseColor(Color.GREEN);
-        
-        Box foot = new Box();
-        foot.setWidth(100.0);
-        foot.setHeight(10.0);
-        foot.setDepth(100.0);
-        foot.setTranslateY(150);
-        foot.setMaterial(yellowMaterial);
-        
-        //Drawing a Cylinder 
-        Cylinder upper_leg = new Cylinder();
-        upper_leg.setHeight(300.0f);
-        upper_leg.setRadius(100.0f);
-        upper_leg.setTranslateY(560);
-        upper_leg.setMaterial(redMaterial);
-        
-        Cylinder lower_leg = new Cylinder(); 
-        lower_leg.setHeight(260.0f);
-        lower_leg.setRadius(80.0f);
-        lower_leg.setTranslateY(300);
-        lower_leg.setMaterial(greenMaterial);
-        
-        //Creating a Group object  
-        Group root = new Group(upper_leg, lower_leg, foot);
-        visualGrid.add(root, 0, 0);
+        if (visualGroup == null) {
+            visualGroup = new Group();
+            Canvas canvas = new Canvas(1024, 768);
+            visualGroup.getChildren().add(canvas);
+            GraphicsContext gc = canvas.getGraphicsContext2D();
+            visualScene = new Scene(visualGroup);
+
+            upperLeg = new Leg(50, 50, 100.0, 0.0);
+            lowerLeg = new Leg(upperLeg.getEndXY(), 80.0, 0.0);
+            foot = new Foot(lowerLeg.getEndXY(), 60.0, Math.PI / 4, 0.5);
+            animT = new AnimationTimer() {
+                @Override
+                public void handle(long currentNanoTime) {
+                    // Clear the canvas
+                    gc.clearRect(0, 0, 1024, 768);
+
+                    gc.setLineWidth(5);
+                    gc.setStroke(Color.BLUE);
+                    gc.strokeLine(upperLeg.getX0(), upperLeg.getY0(),
+                            upperLeg.getX1(), upperLeg.getY1());
+
+                    gc.setStroke(Color.GREEN);
+                    gc.strokeLine(lowerLeg.getX0(), lowerLeg.getY0(),
+                            lowerLeg.getX1(), lowerLeg.getY1());
+
+                    gc.setStroke(Color.RED);
+                    gc.strokeLine(foot.getX0(), foot.getY0(),
+                            foot.getX1(), foot.getY1());
+
+                    Data hipRead = (Data) hipSensorReads.getData().get(lastHipUpdate);
+                    Data kneeRead = (Data) kneeSensorReads.getData().get(lastKneeUpdate);
+                    Data ankleRead = (Data) ankleSensorReads.getData().get(lastAnkleUpdate);
+
+                    upperLeg.setPhi((double) hipRead.getYValue());
+                    lowerLeg.setXY(upperLeg.getEndXY());
+                    lowerLeg.setPhi((double) kneeRead.getYValue());
+                    foot.setAnkleXY(lowerLeg.getEndXY());
+                    foot.setPhi((double) ankleRead.getYValue());
+
+                    frameCount++;
+                    if (frameCount > 16) {
+                        lastHipUpdate++;
+                        if (lastHipUpdate > 11) {
+                            lastHipUpdate = 0;
+                        }
+                        lastKneeUpdate++;
+                        if (lastKneeUpdate > 11) {
+                            lastKneeUpdate = 0;
+                        }
+                        lastAnkleUpdate++;
+                        if (lastAnkleUpdate > 11) {
+                            lastAnkleUpdate = 0;
+                        }
+                        frameCount = 0;
+                    }
+
+                }
+            };
+        }
+    }
+
+    public void messageFromSerial(String type, String data) {
+        switch (type) {
+            case "conStatus": {
+                if (data.equals("S")) {
+                currentState = "Control de Pierna Robotica disponible.";
+                currentIcon = "OptionPane.informationIcon";
+                updateState(currentState, currentIcon);
+                }
+                break;
+            }
+            case "H": {
+                lastHipUpdate++;
+                if (lastHipUpdate > 10){
+                    lastHipUpdate = 1;
+                }
+                hipSensorReads.getData().remove(lastHipUpdate);
+                hipSensorReads.getData().add(
+                        new XYChart.Data(lastHipUpdate,
+                                Integer.parseInt(data)*Math.PI/180));
+                break;
+            }
+            case "K":{                
+                lastKneeUpdate++;
+                if (lastKneeUpdate > 10){
+                    lastKneeUpdate = 1;
+                }
+                kneeSensorReads.getData().remove(lastKneeUpdate);
+                kneeSensorReads.getData().add(
+                        new XYChart.Data(lastKneeUpdate,
+                                Integer.parseInt(data)*Math.PI/180));
+                break;
+            }
+            case "A":{
+                lastAnkleUpdate++;
+                if (lastAnkleUpdate > 10){
+                    lastAnkleUpdate = 1;
+                }
+                ankleSensorReads.getData().remove(lastAnkleUpdate);
+                ankleSensorReads.getData().add(
+                        new XYChart.Data(lastAnkleUpdate,
+                                Integer.parseInt(data)*Math.PI/180));
+                break;
+            }
+            default: {
+                currentState = "No existe conexion con Pierna Robotica.";
+                currentIcon = "OptionPane.errorIcon";
+                updateState(currentState, currentIcon);
+                connectBtn.setSelected(false);
+                Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, data);
+            }
+        }
+    }
+
+    public void messageFromSerial(String error, SerialPortException ex) {
+        rbItDisconnected.setSelected(true);
+        currentState = "No existe conexion con Pierna Robotica.";
+        currentIcon = "OptionPane.errorIcon";
+        updateState(currentState, currentIcon);
+        connectBtn.setSelected(false);
+        Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
     }
 }

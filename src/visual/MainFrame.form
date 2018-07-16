@@ -334,6 +334,9 @@
             <Property name="paintTicks" type="boolean" value="true"/>
             <Property name="toolTipText" type="java.lang.String" value=""/>
           </Properties>
+          <Events>
+            <EventHandler event="stateChanged" listener="javax.swing.event.ChangeListener" parameters="javax.swing.event.ChangeEvent" handler="hipSliderStateChanged"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JSpinner" name="hipSpinner">
           <Properties>
@@ -363,6 +366,9 @@
             <Property name="paintTicks" type="boolean" value="true"/>
             <Property name="toolTipText" type="java.lang.String" value=""/>
           </Properties>
+          <Events>
+            <EventHandler event="stateChanged" listener="javax.swing.event.ChangeListener" parameters="javax.swing.event.ChangeEvent" handler="kneeSliderStateChanged"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JSpinner" name="kneeSpinner">
           <Properties>
@@ -391,6 +397,9 @@
             <Property name="minimum" type="int" value="-359"/>
             <Property name="paintTicks" type="boolean" value="true"/>
           </Properties>
+          <Events>
+            <EventHandler event="stateChanged" listener="javax.swing.event.ChangeListener" parameters="javax.swing.event.ChangeEvent" handler="ankleSliderStateChanged"/>
+          </Events>
         </Component>
         <Component class="javax.swing.JSpinner" name="ankleSpinner">
           <Properties>
@@ -445,7 +454,7 @@
                       <Component id="jPanel1" max="32767" attributes="0"/>
                       <Group type="102" attributes="0">
                           <Component id="comboVisual" min="-2" max="-2" attributes="0"/>
-                          <EmptySpace pref="240" max="32767" attributes="0"/>
+                          <EmptySpace max="32767" attributes="0"/>
                       </Group>
                   </Group>
               </Group>
@@ -499,6 +508,21 @@
 
       <Layout class="org.netbeans.modules.form.compat2.layouts.DesignFlowLayout"/>
       <SubComponents>
+        <Component class="javax.swing.JLabel" name="jLabel5">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Puerto:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JComboBox" name="cbListaPuertos">
+          <Properties>
+            <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+              <StringArray count="0"/>
+            </Property>
+          </Properties>
+          <AuxValues>
+            <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;String&gt;"/>
+          </AuxValues>
+        </Component>
         <Component class="javax.swing.JLabel" name="stateLabel">
           <Properties>
             <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.RADConnectionPropertyEditor">
