@@ -329,8 +329,7 @@
         </Component>
         <Component class="javax.swing.JSlider" name="hipSlider">
           <Properties>
-            <Property name="maximum" type="int" value="359"/>
-            <Property name="minimum" type="int" value="-359"/>
+            <Property name="maximum" type="int" value="180"/>
             <Property name="paintTicks" type="boolean" value="true"/>
             <Property name="toolTipText" type="java.lang.String" value=""/>
           </Properties>
@@ -361,8 +360,7 @@
         </Component>
         <Component class="javax.swing.JSlider" name="kneeSlider">
           <Properties>
-            <Property name="maximum" type="int" value="359"/>
-            <Property name="minimum" type="int" value="-359"/>
+            <Property name="maximum" type="int" value="180"/>
             <Property name="paintTicks" type="boolean" value="true"/>
             <Property name="toolTipText" type="java.lang.String" value=""/>
           </Properties>
@@ -393,8 +391,7 @@
         </Component>
         <Component class="javax.swing.JSlider" name="ankleSlider">
           <Properties>
-            <Property name="maximum" type="int" value="359"/>
-            <Property name="minimum" type="int" value="-359"/>
+            <Property name="maximum" type="int" value="180"/>
             <Property name="paintTicks" type="boolean" value="true"/>
           </Properties>
           <Events>
