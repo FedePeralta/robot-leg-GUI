@@ -6,6 +6,7 @@
 package utilities;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jssc.SerialPort;
@@ -21,48 +22,62 @@ import visual.MainFrame;
 public class LegSerialPort extends SerialPort {
 
     MainFrame parent;
-    String type;
-    int data;
-    String echo = "";
-    ArrayList<String> msgs2send;
+    public String type;
 
     public LegSerialPort(String portName, MainFrame pt) {
         super(portName);
         parent = pt;
         type = "";
-        data = -1;
-        msgs2send = new ArrayList<>();
-
         try {
             this.openPort();
-            this.setParams(SerialPort.BAUDRATE_115200,
+            this.setParams(SerialPort.BAUDRATE_9600,
                     SerialPort.DATABITS_8,
                     SerialPort.STOPBITS_1,
                     SerialPort.PARITY_NONE);
-            Thread.sleep(2000);
+            Thread.sleep(1500);
             this.writeString("S");
-            //                           this.addEventListener(new PortWriter(this),
-            //                                   SerialPort.MASK_TXEMPTY);
-            this.addEventListener(new PortReader(this));
+            this.addEventListener(new PortReaderWriter(this));
         } catch (SerialPortException | InterruptedException ex) {
             Logger.getLogger(LegSerialPort.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+
     public void stopSerial() throws SerialPortException {
         this.closePort();
         System.out.println("Port closed");
     }
 
     public void sendData(String c, int value) {
-        msgs2send.add(value + c);
+        if (type.equals("")) {
+            try {
+                System.out.println("sending data " + value + c);
+                type = c;
+                this.writeString(value + c);
+            } catch (SerialPortException ex) {
+                Logger.getLogger(LegSerialPort.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        } else {
+            try {
+                do {
+                    Thread.sleep(100);
+                    System.out.println("System busy, please wait");
+                } while (type.equals(""));
+                Thread.sleep(100);
+                System.out.println("sending data " + value + c);
+                type = c;
+                this.writeString(value + c);
+            } catch (InterruptedException | SerialPortException ex) {
+                Logger.getLogger(LegSerialPort.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
-    private static class PortReader implements SerialPortEventListener {
+    private static class PortReaderWriter implements SerialPortEventListener {
 
         LegSerialPort serialPort;
         String buffer = "";
 
-        private PortReader(LegSerialPort aThis) {
+        private PortReaderWriter(LegSerialPort aThis) {
             serialPort = aThis;
         }
 
@@ -72,8 +87,6 @@ public class LegSerialPort extends SerialPort {
                 try {
                     String receivedData = serialPort.
                             readString(event.getEventValue());
-
-                    System.out.println(receivedData);
                     if (receivedData.contains("S")) {
                         serialPort.parent.messageFromSerial(
                                 "conStatus", "S");
@@ -85,27 +98,13 @@ public class LegSerialPort extends SerialPort {
                         serialPort.parent.messageFromSerial(
                                 serialPort.type, buffer);
                         buffer = "";
+                        
+                        serialPort.type = "";
                     }
                 } catch (SerialPortException ex) {
                     Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
-            } else if (event.isTXEMPTY()) {
-                System.out.println("where my resources at" + event.isTXEMPTY());
-                if (serialPort.msgs2send.size() > 0) {
-                    System.out.println("now sending: "
-                            + serialPort.msgs2send.get(0));
-                }
-
-                try {
-                    serialPort.writeString(serialPort.msgs2send.get(0));
-                } catch (SerialPortException ex) {
-                    Logger.getLogger(LegSerialPort.class.getName()).log(Level.SEVERE, null, ex);
-                }
-
-                serialPort.msgs2send.remove(0);
-
             }
-
         }
     }
 

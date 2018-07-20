@@ -537,10 +537,9 @@ public class MainFrame extends javax.swing.JFrame {
     private void connectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectBtnActionPerformed
         if (connectBtn.isSelected()) {
             serialPort = new LegSerialPort(
-                    (String) cbListaPuertos.getSelectedItem());
+                    (String) cbListaPuertos.getSelectedItem(), this);
+            
             rbItUnkown.setSelected(true);
-            // Se conecta y luego se envia un S de start, si se
-            // recibe un S de nuevo, hay conexion
             currentState = "Conectando con Pierna Robotica ...";
             currentIcon = "OptionPane.questionIcon";
             updateState(currentState, currentIcon);
@@ -549,14 +548,18 @@ public class MainFrame extends javax.swing.JFrame {
             currentState = "No existe conexion con Pierna Robotica.";
             currentIcon = "OptionPane.errorIcon";
             updateState(currentState, currentIcon);
-            serialPort.stopSerial();
+            try {
+                serialPort.stopSerial();
+            } catch (SerialPortException ex) {
+                Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
     }//GEN-LAST:event_connectBtnActionPerformed
 
     private void hipSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_hipSliderStateChanged
         JSlider source = (JSlider) evt.getSource();
         if (!source.getValueIsAdjusting() && connectBtn.isSelected()) {
-            System.out.println("Sending: C=" + hipSlider.getValue());
+            System.out.println("Queueing: " + hipSlider.getValue() + "c");
             serialPort.sendData("c", (int) hipSlider.getValue());
         }
     }//GEN-LAST:event_hipSliderStateChanged
@@ -772,12 +775,11 @@ public class MainFrame extends javax.swing.JFrame {
                     Data hipRead = (Data) hipSensorReads.getData().get(lastHipUpdate);
                     Data kneeRead = (Data) kneeSensorReads.getData().get(lastKneeUpdate);
                     Data ankleRead = (Data) ankleSensorReads.getData().get(lastAnkleUpdate);
-
-                    upperLeg.setPhi((double) hipRead.getYValue());
+                    upperLeg.setPhi((double) (hipRead.getYValue()));
                     lowerLeg.setXY(upperLeg.getEndXY());
-                    lowerLeg.setPhi((double) kneeRead.getYValue());
+                    lowerLeg.setPhi((double) (kneeRead.getYValue()));
                     foot.setAnkleXY(lowerLeg.getEndXY());
-                    foot.setPhi((double) ankleRead.getYValue());
+                    foot.setPhi((double) (ankleRead.getYValue()));
 
                     frameCount++;
                     if (frameCount > 16) {
